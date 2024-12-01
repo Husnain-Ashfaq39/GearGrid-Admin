@@ -1,9 +1,8 @@
-// src/pages/Ecommerce/EcommerceAddCategory.jsx
-
 import React, { useState, useEffect } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import Dropzone from "react-dropzone";
+import axios from "axios";  // New import for Axios
 import {
   Button,
   Card,
@@ -18,13 +17,10 @@ import {
   CardHeader,
 } from "reactstrap";
 import { useNavigate } from "react-router-dom";
-import db from "../../../appwrite/Services/dbServices";
-import storageServices from "../../../appwrite/Services/storageServices";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import BreadCrumb from "../../../Components/Common/BreadCrumb";
 import Select from "react-select";
-import { Query } from "appwrite";
 
 const EcommerceAddCategory = () => {
   const navigate = useNavigate();
@@ -32,33 +28,22 @@ const EcommerceAddCategory = () => {
   const [categoryType, setCategoryType] = useState("category");
   const [categories, setCategories] = useState([]);
   const [parentCategoryId, setParentCategoryId] = useState(null);
-  const [imageError, setImageError] = useState(""); // New state for image errors
-  const [isFetchingCategories, setIsFetchingCategories] = useState(false); // Loading state for fetching categories
+  const [imageError, setImageError] = useState("");
+  const [isFetchingCategories, setIsFetchingCategories] = useState(false);
 
   const categoryFetchLimit = 100; // Adjust as needed for batch fetching
 
-  // Helper function to fetch all categories with pagination
+  // Helper function to fetch all categories from your Express backend
   const fetchAllCategories = async () => {
-    let allCategories = [];
-    let offset = 0;
-    let fetchedCategories = [];
+   
 
     try {
       setIsFetchingCategories(true);
-      do {
-        const response = await db.Categories.list([
-          Query.limit(categoryFetchLimit),
-          Query.offset(offset),
-        ]);
-        fetchedCategories = response.documents;
-        allCategories = [...allCategories, ...fetchedCategories];
-        offset += categoryFetchLimit;
-      } while (fetchedCategories.length === categoryFetchLimit);
-      
+      const allCategories = await axios.get('http://localhost:5001/categories/all');
       // Map categories to Select options
       const categoryOptions = allCategories.map((cat) => ({
         label: cat.name,
-        value: cat.$id,
+        value: cat._id,  // Assuming MongoDB ObjectId is used as '_id'
       }));
       setCategories(categoryOptions);
     } catch (error) {
@@ -112,40 +97,38 @@ const EcommerceAddCategory = () => {
       description: Yup.string().required("Please enter a description"),
     }),
     onSubmit: async (values, { setSubmitting, resetForm }) => {
-      // Reset image error
-      setImageError("");
-
+      setImageError(""); // Reset image error
+    
       // Validate that an image is selected
       if (!selectedFile) {
         setImageError("Please upload a category image.");
         return; // Prevent form submission
       }
-
+    
       // If creating a subcategory, ensure a parent category is selected
       if (categoryType === "subcategory" && !parentCategoryId) {
         toast.error("Please select a parent category for the subcategory.");
         return;
       }
-
+    
       try {
-        let imageId = null;
-
-        // Upload image
-        if (selectedFile) {
-          const storedFile = await storageServices.images.createFile(selectedFile);
-          imageId = storedFile.$id;
+        // Upload image to Cloudinary via your backend
+        const formData = new FormData();
+        formData.append("image", selectedFile);  // Append the single file directly
+    
+        // Append form data values
+        Object.entries(values).forEach(([key, value]) => formData.append(key, value));
+        
+        // Append parentCategoryId if subcategory
+        if (categoryType === "subcategory" && parentCategoryId) {
+          formData.append("parentCategoryId", parentCategoryId);
         }
-
-        // Prepare category data
-        const newCategory = {
-          name: values.name,
-          description: values.description,
-          image: imageId ? [imageId] : [],
-          parentCategoryId: categoryType === "subcategory" ? parentCategoryId : null,
-        };
-
-        // Save category
-        await db.Categories.create(newCategory);
+    
+        const response = await axios.post("http://localhost:5001/categories/add", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+    
+        console.log(response);
         toast.success("Category added successfully");
         resetForm();
         setSelectedFile(null);
@@ -157,7 +140,8 @@ const EcommerceAddCategory = () => {
       } finally {
         setSubmitting(false);
       }
-    },
+    }
+    
   });
 
   return (
@@ -398,8 +382,8 @@ const EcommerceAddCategory = () => {
                       {formik.isSubmitting
                         ? "Submitting..."
                         : categoryType === "category"
-                        ? "Add Category"
-                        : "Add Subcategory"}
+                          ? "Add Category"
+                          : "Add Subcategory"}
                     </Button>
                   </div>
                 </Form>

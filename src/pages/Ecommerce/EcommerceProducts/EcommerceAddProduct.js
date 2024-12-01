@@ -22,12 +22,12 @@ import {
 } from "reactstrap";
 import Select from "react-select";
 import db from "../../../appwrite/Services/dbServices";
-import storageServices from "../../../appwrite/Services/storageServices";
 import { CKEditor } from "@ckeditor/ckeditor5-react";
 import ClassicEditor from "@ckeditor/ckeditor5-build-classic";
 import { Query } from "appwrite"; // Import Query for pagination
 import { ToastContainer } from "react-toastify";
 import BreadCrumb from "../../../Components/Common/BreadCrumb";
+import axios from "axios";
 
 const EcommerceAddProduct = () => {
   const dispatch = useDispatch();
@@ -174,75 +174,23 @@ const EcommerceAddProduct = () => {
         .integer("Low stock alert must be an integer"),
     }),
     onSubmit: async (values, { resetForm }) => {
-      // Reset errors
       setSubmitError("");
       setImageError("");
-
-      // Validate that at least one image is selected
+    
       if (selectedFiles.length === 0) {
         setImageError("Please upload at least one product image.");
-        return; // Prevent form submission
+        return;
       }
-
+    
+      const formData = new FormData();
+      selectedFiles.forEach((file) => formData.append("images", file));
+      Object.entries(values).forEach(([key, value]) => formData.append(key, value));
+    
       try {
-        console.log("Form Values on Submit:", values);
-        let imageIds = [];
-
-        // Upload the selected images to Appwrite storage on form submission
-        if (selectedFiles.length > 0) {
-          imageIds = await Promise.all(
-            selectedFiles.map(async (file) => {
-              try {
-                const storedFile = await storageServices.images.createFile(file);
-                if (storedFile && storedFile.$id) {
-                  console.log(`Uploaded File ID: ${storedFile.$id}`);
-                  return storedFile.$id;
-                } else {
-                  throw new Error("Invalid response from image upload.");
-                }
-              } catch (error) {
-                console.error("Image upload error:", error);
-                return null; // Exclude failed uploads
-              }
-            })
-          );
-
-          // Filter out any null entries resulting from failed uploads
-          imageIds = imageIds.filter((id) => id !== null);
-          console.log("Uploaded Image IDs:", imageIds);
-        }
-
-        // Calculate the final price including tax
-        const taxAmount = (parseFloat(values.taxExclusivePrice) * parseFloat(values.tax)) / 100;
-        const finalPrice = parseFloat(values.taxExclusivePrice) + taxAmount;
-
-        // Prepare the product data to save
-        const newProduct = {
-          name: values.name,
-          description: values.description,
-          price: finalPrice,
-          stockQuantity: parseInt(values.stockQuantity, 10),
-          categoryId: values.categoryId,
-          images: imageIds,
-          tags: values.tags
-            ? values.tags.split(",").map((tag) => tag.trim())
-            : [],
-          isOnSale: values.isOnSale,
-          discountPrice: values.isOnSale
-            ? parseFloat(values.discountPrice)
-            : null,
-          barcode: values.barcode,
-          taxExclusivePrice: parseFloat(values.taxExclusivePrice),
-          tax: parseFloat(values.tax),
-          bannerLabel: values.bannerLabel,
-          lowStockAlert: values.lowStockAlert ? parseInt(values.lowStockAlert) : null,
-        };
-
-        console.log("New Product Data:", newProduct);
-
-        // Save the product to the Appwrite Products collection
-        await db.Products.create(newProduct);
-        console.log("Product successfully created.");
+        const response = await axios.post("http://localhost:5001/api/products/add-product", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        console.log("Product successfully created:", response.data);
         resetForm();
         setSelectedFiles([]);
         navigate("/apps-ecommerce-products");

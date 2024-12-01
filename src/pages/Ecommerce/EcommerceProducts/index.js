@@ -30,6 +30,7 @@ import { useQuery } from "react-query"; // Import useQuery from React Query
 import loading from "../../../assets/animations/loading.json";
 import search from "../../../assets/animations/search.json";
 import Lottie from "lottie-react";
+import axios from "axios";
 
 const EcommerceProducts = () => {
   // State variables
@@ -50,28 +51,9 @@ const EcommerceProducts = () => {
 
   // Function to fetch all products with pagination
   const fetchAllProducts = async () => {
-    let products = [];
-    let offset = 0;
-    const limit = 100; // Maximum limit per request
-
-    // Fetch products in batches until all are fetched
-    while (true) {
-      const productResponse = await db.Products.list([
-        Query.limit(limit),
-        Query.offset(offset),
-      ]);
-
-      // Add the fetched products to the array
-      products = products.concat(productResponse.documents);
-
-      // If the number of fetched products is less than the limit, we've fetched all products
-      if (productResponse.documents.length < limit) {
-        break;
-      }
-
-      // Increment the offset for the next batch
-      offset += limit;
-    }
+   
+    let products = await axios.get('http://localhost:5001/api/products/all');
+    
 
     // Map and parse the product data
     products = products.map((product) => ({
@@ -85,40 +67,19 @@ const EcommerceProducts = () => {
 
   // Function to fetch all categories with pagination
   const fetchAllCategories = async () => {
-    let allCategories = [];
-    let offset = 0;
-    const limit = 100; // Adjust the limit as needed
+   
+   
+      const categoryResponse = await axios.get('http://localhost:5001/categories/all');
 
-    // Fetch categories in batches until all are fetched
-    while (true) {
-      const categoryResponse = await db.Categories.list([
-        Query.limit(limit),
-        Query.offset(offset),
-      ]);
+     
 
-      // Add the fetched categories to the array
-      allCategories = allCategories.concat(categoryResponse.documents);
-
-      // If the number of fetched categories is less than the limit, we've fetched all categories
-      if (categoryResponse.documents.length < limit) {
-        break;
-      }
-
-      // Increment the offset for the next batch
-      offset += limit;
-    }
-
-    return allCategories;
+    return categoryResponse;
   };
 
   // Fetch products using useQuery
   const { data: productsData, isLoading: isProductsLoading } = useQuery(
     "products",
-    fetchAllProducts,
-    {
-      staleTime: Infinity, // Data is considered fresh indefinitely
-      cacheTime: Infinity, // Cache data indefinitely
-    }
+    fetchAllProducts
   );
 
   // Fetch categories using useQuery with pagination
@@ -341,8 +302,7 @@ const EcommerceProducts = () => {
       "isOnSale": product.isOnSale ? "Yes" : "No",
      
       "stockQuantity": product.stockQuantity,
-      "images": product.images && product.images.length > 0
-        ? product.images.map(getImageURL).join("; ")
+      "images": product.images? product.images[0]
         : "No Images",
       "tags": product.tags && product.tags.length > 0
         ? product.tags.join("; ")
@@ -429,7 +389,7 @@ const EcommerceProducts = () => {
                 <div className="avatar-sm bg-light rounded p-1">
                   {cell.row.original.images && cell.row.original.images.length > 0 ? (
                     <img
-                      src={getImageURL(cell.row.original.images[0])}
+                      src={cell.row.original.images[0]}
                       alt=""
                       className="img-fluid d-block"
                     />

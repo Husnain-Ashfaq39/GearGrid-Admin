@@ -1,5 +1,3 @@
-// src/pages/HeroSection/HeroSectionList.js
-
 import React, { useEffect, useState } from "react";
 import {
   Container,
@@ -11,38 +9,40 @@ import {
 } from "reactstrap";
 import BreadCrumb from "../../../Components/Common/BreadCrumb";
 import { Link } from "react-router-dom";
-import db from "../../../appwrite/Services/dbServices";
-import storageServices from "../../../appwrite/Services/storageServices";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Lottie from "lottie-react";
 import loadingAnimation from "../../../assets/animations/loading.json";
 import noDataAnimation from "../../../assets/animations/search.json";
+import axios from "axios";
 
 const GeneralimagesList = () => {
   const [heroSection, setHeroSection] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [logoFile, setLogoFile] = useState(null);
 
   useEffect(() => {
     const fetchHeroSection = async () => {
       try {
         setIsLoading(true);
-        const response = await db.GeneralData.list();
-        let heroData = response.documents[0];
+        const heroData = await axios.get("http://localhost:5001/GeneralData/all");
+        console.log('Fetching'+heroData);
+       
 
         if (!heroData) {
-          // Updated dummyData to include terms
+          // Handle the case when no general data exists
           const dummyData = {
             logo: "",
             facebook: "https://www.facebook.com",
             twitter: "https://www.twitter.com",
             instagram: "https://www.instagram.com",
             linkedin: "https://www.linkedin.com",
-            terms: "<p>Default Terms and Conditions.</p>", // Added terms field
+            terms: "<p>Default Terms and Conditions.</p>",
           };
 
-          const newDocument = await db.GeneralData.create(dummyData);
-          heroData = newDocument;
+          // If no data, create it using the API
+          await axios.post("http://localhost:5001/GeneralData", dummyData);
+          heroData = dummyData;
           toast.success("Dummy General Data created.");
         }
 
@@ -54,17 +54,16 @@ const GeneralimagesList = () => {
         setIsLoading(false);
       }
     };
+
     fetchHeroSection();
   }, []);
 
-  // Function to get image URL
-  const getImageURL = (imageId) => {
-    if (!imageId) return null;
-    // Assuming getFileDownload returns a URL string
-    return storageServices.images.getFileDownload(imageId);
-  };
+  
 
-  // Helper function to render loading animation
+  
+
+
+
   const renderLoadingAnimation = () => (
     <div
       className="d-flex justify-content-center align-items-center flex-column"
@@ -81,7 +80,6 @@ const GeneralimagesList = () => {
     </div>
   );
 
-  // Helper function to render no data animation
   const renderNoResultsAnimation = () => (
     <div
       className="d-flex justify-content-center align-items-center flex-column"
@@ -104,7 +102,6 @@ const GeneralimagesList = () => {
       <Container fluid>
         <BreadCrumb title="Images" pageTitle="Images" />
         {isLoading ? (
-          // Loading Indicator
           renderLoadingAnimation()
         ) : heroSection ? (
           <Row>
@@ -114,7 +111,7 @@ const GeneralimagesList = () => {
                   <h4 className="card-title mb-0 flex-grow-1">Images</h4>
                   <div className="flex-shrink-0">
                     <Link
-                      to={`/editgeneralimages/${heroSection.$id}`}
+                      to={`/editgeneralimages/${heroSection._id}`}
                       className="btn btn-primary"
                     >
                       Edit Images
@@ -129,7 +126,7 @@ const GeneralimagesList = () => {
                         <td>
                           {heroSection.logo ? (
                             <img
-                              src={getImageURL(heroSection.logo)}
+                              src={heroSection.logo}
                               alt="Logo"
                               className="img-thumbnail"
                               style={{
@@ -146,105 +143,50 @@ const GeneralimagesList = () => {
                       <tr>
                         <th>Facebook</th>
                         <td>
-                          {heroSection.facebook ? (
-                            <a
-                              href={
-                                heroSection.facebook.startsWith("http")
-                                  ? heroSection.facebook
-                                  : `https://${heroSection.facebook}`
-                              }
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              {heroSection.facebook}
-                            </a>
-                          ) : (
-                            "No Facebook link."
-                          )}
+                          <a href={heroSection.facebook} target="_blank" rel="noopener noreferrer">
+                            {heroSection.facebook}
+                          </a>
                         </td>
                       </tr>
                       <tr>
                         <th>Twitter</th>
                         <td>
-                          {heroSection.twitter ? (
-                            <a
-                              href={
-                                heroSection.twitter.startsWith("http")
-                                  ? heroSection.twitter
-                                  : `https://${heroSection.twitter}`
-                              }
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              {heroSection.twitter}
-                            </a>
-                          ) : (
-                            "No Twitter link."
-                          )}
+                          <a href={heroSection.twitter} target="_blank" rel="noopener noreferrer">
+                            {heroSection.twitter}
+                          </a>
                         </td>
                       </tr>
                       <tr>
                         <th>Instagram</th>
                         <td>
-                          {heroSection.instagram ? (
-                            <a
-                              href={
-                                heroSection.instagram.startsWith("http")
-                                  ? heroSection.instagram
-                                  : `https://${heroSection.instagram}`
-                              }
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              {heroSection.instagram}
-                            </a>
-                          ) : (
-                            "No Instagram link."
-                          )}
+                          <a href={heroSection.instagram} target="_blank" rel="noopener noreferrer">
+                            {heroSection.instagram}
+                          </a>
                         </td>
                       </tr>
                       <tr>
                         <th>LinkedIn</th>
                         <td>
-                          {heroSection.linkedin ? (
-                            <a
-                              href={
-                                heroSection.linkedin.startsWith("http")
-                                  ? heroSection.linkedin
-                                  : `https://${heroSection.linkedin}`
-                              }
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              {heroSection.linkedin}
-                            </a>
-                          ) : (
-                            "No LinkedIn link."
-                          )}
+                          <a href={heroSection.linkedin} target="_blank" rel="noopener noreferrer">
+                            {heroSection.linkedin}
+                          </a>
                         </td>
                       </tr>
                       <tr>
                         <th>Terms and Conditions</th>
                         <td>
-                          {heroSection.terms ? (
-                            <div
-                              dangerouslySetInnerHTML={{
-                                __html: heroSection.terms,
-                              }}
-                            />
-                          ) : (
-                            "No Terms and Conditions provided."
-                          )}
+                          <div dangerouslySetInnerHTML={{ __html: heroSection.terms }} />
                         </td>
                       </tr>
                     </tbody>
                   </table>
+
+                  
                 </CardBody>
               </Card>
             </Col>
           </Row>
         ) : (
-          // No Data Indicator
           renderNoResultsAnimation()
         )}
       </Container>

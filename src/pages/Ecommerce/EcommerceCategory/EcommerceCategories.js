@@ -25,6 +25,7 @@ import { Query } from "appwrite";
 import Lottie from "lottie-react"; // Import Lottie component
 import loadingAnimation from "../../../assets/animations/loading.json"; // Import loading animation JSON
 import searchAnimation from "../../../assets/animations/search.json"; // Import search animation JSON
+import axios from "axios";
 
 const EcommerceCategories = () => {
   const [categoryList, setCategoryList] = useState([]);
@@ -50,24 +51,16 @@ const EcommerceCategories = () => {
 
   // Fetch all categories with pagination
   const fetchAllCategories = async () => {
-    let allCategories = [];
-    let offset = 0;
-    let fetchedCategories = [];
+    
 
     try {
       setIsLoading(true);
-      do {
-        const response = await db.Categories.list([
-          Query.limit(limit),
-          Query.offset(offset),
-        ]);
-        fetchedCategories = response.documents;
-        allCategories = [...allCategories, ...fetchedCategories];
-        offset += limit;
-      } while (fetchedCategories.length === limit);
+     
+      const response = await axios.get('http://localhost:5001/categories/all');
+      console.log('categories '+JSON.stringify(response));
 
-      setCategoryList(allCategories);
-      setFilteredCategoryList(allCategories);
+      setCategoryList(response);
+      setFilteredCategoryList(response);
     } catch (error) {
       console.error("Failed to fetch categories:", error);
       toast.error("Failed to fetch categories");
@@ -133,10 +126,10 @@ const EcommerceCategories = () => {
         enableColumnFilter: false,
         cell: (cell) => {
           const imageArray = cell.getValue();
-          const imageId = imageArray && imageArray.length > 0 ? imageArray[0] : null;
-          return imageId ? (
+          
+          return imageArray ? (
             <img
-              src={getImageURL(imageId)}
+              src={imageArray[0]}
               alt={cell.row.original.name}
               style={{
                 width: "50px",

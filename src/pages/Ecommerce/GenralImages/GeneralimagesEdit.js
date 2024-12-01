@@ -27,6 +27,7 @@ import loadingAnimation from "../../../assets/animations/loading.json";
 import noDataAnimation from "../../../assets/animations/search.json";
 import { CKEditor } from "@ckeditor/ckeditor5-react";
 import ClassicEditor from "@ckeditor/ckeditor5-build-classic";
+import axios from "axios";
 
 const GeneralDataEdit = () => {
   const navigate = useNavigate();
@@ -41,19 +42,19 @@ const GeneralDataEdit = () => {
     const fetchHeroSection = async () => {
       try {
         setIsLoading(true);
-        const hero = await db.GeneralData.get(id);
-        if (!hero) {
+        const data = await axios.get(`http://localhost:5001/GeneralData/all`);
+        console.log(data);
+        
+        if (!data) {
           setHasError(true);
           toast.error("No data found for the provided ID.");
           return;
         }
-        setHeroData(hero);
-
-        if (hero.logo) {
-          const loginImageUrlResponse = await storageServices.images.getFileDownload(
-            hero.logo
-          );
-          setExistingLoginImageUrl(loginImageUrlResponse);
+        setHeroData(data);
+  
+        // If there is an existing logo, set it
+        if (data.logo) {
+          setExistingLoginImageUrl(data.logo || ''); // The logo URL from Cloudinary
         }
       } catch (error) {
         console.error("Failed to fetch Images:", error);
@@ -65,6 +66,7 @@ const GeneralDataEdit = () => {
     };
     fetchHeroSection();
   }, [id]);
+  
 
   const validation = useFormik({
     enableReinitialize: true,
@@ -81,24 +83,32 @@ const GeneralDataEdit = () => {
       twitter: Yup.string().url("Invalid Twitter URL"),
       instagram: Yup.string().url("Invalid Instagram URL"),
       linkedin: Yup.string().url("Invalid LinkedIn URL"),
-      terms: Yup.string().required("Please enter the Terms and Conditions"), // Validation for Terms
+      terms: Yup.string().required("Please enter the Terms and Conditions"),
     }),
-
+  
     onSubmit: async (values) => {
       try {
         let logo = heroData.logo;
-
+  
         if (selectedLoginFile) {
-          const uploadedLoginImage = await storageServices.images.createFile(
-            selectedLoginFile
-          );
-          logo = uploadedLoginImage.$id;
-
+          // Upload image to Cloudinary
+          const formData = new FormData();
+          formData.append("image", selectedLoginFile);
+          const uploadResponse = await axios.post("http://localhost:5001/cloudinary/upload", formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+          console.log('new upload logo '+JSON.stringify(uploadResponse.data[0]));
+          
+  
+          // Set the new logo URL from Cloudinary response
+          logo = uploadResponse.data[0]; // Cloudinary response URL
+  
+          // If there was an existing logo, delete it from Cloudinary
           if (heroData.logo) {
-            await storageServices.images.deleteFile(heroData.logo);
+            await axios.delete(`http://localhost:5001/cloudinary/delete/${heroData.logo}`);
           }
         }
-
+  
         const updatedHeroData = {
           logo,
           facebook: values.facebook,
@@ -107,8 +117,8 @@ const GeneralDataEdit = () => {
           linkedin: values.linkedin,
           terms: values.terms, // Include Terms in the update
         };
-
-        await db.GeneralData.update(id, updatedHeroData);
+  
+        await axios.put(`http://localhost:5001/GeneralData`, updatedHeroData);
         toast.success("Images updated successfully");
         navigate("/generalimageslist");
       } catch (error) {
@@ -117,6 +127,7 @@ const GeneralDataEdit = () => {
       }
     },
   });
+  
 
   const { getRootProps: getLoginRootProps, getInputProps: getLoginInputProps } =
     useDropzone({
