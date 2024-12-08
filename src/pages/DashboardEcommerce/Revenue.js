@@ -8,6 +8,7 @@ import { Query } from "appwrite";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import moment from "moment";
+import axios from "axios";
 
 const Revenue = () => {
   const [chartData, setChartData] = useState([]);
@@ -45,12 +46,12 @@ const Revenue = () => {
       const endDate = moment().endOf("month").toDate();
 
       // Fetch Orders within the date range
-      const ordersQuery = [
-        Query.greaterThanEqual("createdAt", startDate),
-        Query.lessThanEqual("createdAt", endDate),
-      ];
-      const ordersResponse = await db.Orders.list(ordersQuery);
-      const orders = ordersResponse.documents;
+      const allOrders = await axios.get('http://localhost:5001/orders/all');
+    
+      const orders = allOrders.filter(order => {
+        const createdAt = moment(order.createdAt);
+        return createdAt.isBetween(startDate, endDate, null, '[]');
+      });
 
       // Initialize data structures
       const months = [];

@@ -12,6 +12,7 @@ import db from "../../appwrite/Services/dbServices";
 import { Query } from "appwrite";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import axios from "axios";
 
 const StoreVisits = () => {
   const [labels, setLabels] = useState([]);
@@ -23,10 +24,8 @@ const StoreVisits = () => {
     setLoading(true);
     try {
       // Fetch all OrderItems
-      const orderItemsResponse = await db.OrderItems.list([
-        Query.limit(1000), // Adjust the limit as needed
-      ]);
-      const orderItems = orderItemsResponse.documents;
+      const orderItems = await axios.get('http://localhost:5001/orderitems');
+    
 
       // Aggregate the number of items sold per category
       const categorySalesMap = {};
@@ -41,15 +40,13 @@ const StoreVisits = () => {
       });
 
       // Fetch all Categories to map categoryId to categoryName
-      const categoriesResponse = await db.Categories.list([
-        Query.limit(1000), // Adjust the limit as needed
-      ]);
-      const categories = categoriesResponse.documents;
+      const categories = await axios.get('http://localhost:5001/categories/all');
+     
 
       // Create a map of categoryId to categoryName
       const categoryIdNameMap = {};
       categories.forEach((category) => {
-        categoryIdNameMap[category.$id] = category.name;
+        categoryIdNameMap[category._id] = category.name;
       });
 
       // Convert the categorySalesMap to an array for sorting

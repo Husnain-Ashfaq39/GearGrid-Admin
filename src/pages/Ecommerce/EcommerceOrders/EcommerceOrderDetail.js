@@ -45,6 +45,10 @@ import EcommerceOrderProduct from "./EcommerceOrderProduct";
 import Lottie from "lottie-react";
 import loadingAnimation from "../../../assets/animations/loading.json";
 
+import axios from "axios"; // Import axios
+
+
+
 const EcommerceOrderDetail = () => {
   const { orderId } = useParams(); // Assuming orderId is passed via route parameters
   const navigate = useNavigate(); // For navigation after deletion
@@ -103,7 +107,7 @@ const EcommerceOrderDetail = () => {
     setLoading(true);
     try {
       // Assuming 'Orders' is the collection name and correctly mapped in dbServices.js
-      await db.Orders.delete(selectedOrder.$id);
+      await db.Orders.delete(selectedOrder._id);
       toast.success("Order deleted successfully", { autoClose: 3000 });
       navigate("/dashboard/orders"); // Redirect to orders list page
     } catch (err) {
@@ -166,20 +170,10 @@ const EcommerceOrderDetail = () => {
   // Fetch OrderItems with pagination
   const fetchOrderItems = useCallback(async (offset = 0) => {
     try {
-      const limit = 100; // Adjust based on your needs
-      const response = await db.OrderItems.list([
-        Query.equal("orderId", [orderId]),
-        Query.limit(limit),
-        Query.offset(offset),
-      ]);
-
-      if (response.documents.length === limit) {
-        // If we got a full page, there might be more
-        const nextItems = await fetchOrderItems(offset + limit);
-        return [...response.documents, ...nextItems];
-      }
-
-      return response.documents;
+    
+      const response = await axios.get(`http://localhost:5001/orderitems`);
+      const filteredOrderItems = response.filter(item => item.orderId === orderId);
+      return filteredOrderItems;
     } catch (error) {
       console.error("Error fetching order items:", error);
       return [];
@@ -191,7 +185,7 @@ const EcommerceOrderDetail = () => {
     setLoading(true);
     setError(null);
     try {
-      const orderResponse = await db.Orders.get(orderId);
+      const orderResponse = await axios.get(`http://localhost:5001/orders/${orderId}`);
       setOrder(orderResponse);
 
       const allOrderItems = await fetchOrderItems();
@@ -273,7 +267,7 @@ const EcommerceOrderDetail = () => {
 
         setLoading(true);
         try {
-          await db.Orders.update(selectedOrder.$id, updatedOrder);
+          await db.Orders.update(selectedOrder._id, updatedOrder);
           // Update local state
           setOrder((prevOrder) => ({ ...prevOrder, ...updatedOrder }));
           toast.success("Order updated successfully", { autoClose: 3000 });
@@ -318,13 +312,13 @@ const EcommerceOrderDetail = () => {
           <input
             type="checkbox"
             className="orderCheckBox form-check-input"
-            value={cell.row.original.$id}
+            value={cell.row.original._id}
             onChange={handleCheckboxChange}
             aria-label={`Select Item ${cell.row.original.productName}`}
           />
         ),
         id: "#",
-        accessorKey: "$id",
+        accessorKey: "_id",
         enableColumnFilter: false,
         enableSorting: false,
       },
@@ -355,7 +349,7 @@ const EcommerceOrderDetail = () => {
       // Removed "Rating" Column
       {
         header: "Total Amount",
-        accessorKey: "total",
+        accessorKey: "totalPrice",
         enableColumnFilter: false,
         cell: () => `£${totalAmount}`,
       },
@@ -464,7 +458,7 @@ const EcommerceOrderDetail = () => {
 
   // Construct Order Number
   const orderNumber =
-    order.orderNumber || `#${order.$id.substring(0, 8).toUpperCase()}`;
+    order.orderNumber || `#${order._id.substring(0, 8).toUpperCase()}`;
 
   // Construct Address from Order Fields
   const address = [

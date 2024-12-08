@@ -51,6 +51,7 @@ import Flatpickr from "react-flatpickr";
 import Lottie from "lottie-react";
 import loadingAnimation from "../../../assets/animations/loading.json";
 import noDataAnimation from "../../../assets/animations/search.json";
+import axios from "axios";
 
 const EcommerceOrders = () => {
   // State Management
@@ -153,11 +154,11 @@ const EcommerceOrders = () => {
     if (!selectedOrder) return;
     setLoading(true);
     try {
-      const orderId = selectedOrder.$id;
+      const orderId = selectedOrder._id;
       await db.Orders.delete(orderId);
       // Remove the deleted order from master data
       setOrders((prevOrders) =>
-        prevOrders.filter((order) => order.$id !== orderId)
+        prevOrders.filter((order) => order._id !== orderId)
       );
       toast.success("Order deleted successfully", { autoClose: 3000 });
     } catch (err) {
@@ -182,62 +183,26 @@ const EcommerceOrders = () => {
     setLoading(true);
     setError(null);
     try {
-      const queries = [];
-
-      // Filter based on date range
-      if (dateRange.length === 2) {
-        const [fromDate, toDate] = dateRange;
-        const fromDateTime = moment(fromDate).startOf("day").toISOString();
-        const toDateTime = moment(toDate).endOf("day").toISOString();
-        queries.push(Query.greaterThanEqual("createdAt", fromDateTime));
-        queries.push(Query.lessThanEqual("createdAt", toDateTime));
-      }
-
-      // Add ordering and limit
-      queries.push(Query.orderDesc("createdAt")); // Order by latest first
-      queries.push(Query.limit(100)); // Set limit to 100 (Appwrite's maximum per request)
-
-      // Include necessary fields
-      queries.push(
-        Query.select([
-          "$id",
-          "orderStatus",
-          "createdAt",
-          "totalPrice",
-          "paymentMethod",
-          "paymentStatus",
-          "customerFirstName",
-          "customerLastName",
-        ])
-      );
-
-      // Add cursor if exists for pagination
-      if (cursor) {
-        queries.push(Query.cursorAfter(cursor));
-      }
+     
 
       // Fetch Orders with Queries
-      const ordersResponse = await db.Orders.list(queries);
-      const fetchedOrders = ordersResponse.documents;
+      const fetchedOrders = await axios.get('http://localhost:5001/orders/all'); // Call custom API to get all orders using axios
+      console.log("Fetched Orders "+JSON.stringify(fetchedOrders));
+      
 
-      if (fetchedOrders.length < 100) {
-        setHasMore(false); // No more orders to fetch
-      } else {
-        const lastOrder = fetchedOrders[fetchedOrders.length - 1];
-        setCursor(lastOrder.createdAt); // Use createdAt as the new cursor
-      }
+     
 
       // Add orderNumber to each order
       const ordersWithNumber = fetchedOrders.map((order) => ({
         ...order,
-        orderNumber: getOrderNumber(order.$id),
+        orderNumber: getOrderNumber(order._id),
       }));
 
-      // Deduplicate orders based on $id
+      // Deduplicate orders based on _id
       setOrders((prevOrders) => {
-        const existingOrderIds = new Set(prevOrders.map((order) => order.$id));
+        const existingOrderIds = new Set(prevOrders.map((order) => order._id));
         const newUniqueOrders = ordersWithNumber.filter(
-          (order) => !existingOrderIds.has(order.$id)
+          (order) => !existingOrderIds.has(order._id)
         );
         return [...prevOrders, ...newUniqueOrders];
       });
@@ -374,7 +339,7 @@ const EcommerceOrders = () => {
       setSelectedCheckBoxDelete([]);
       setIsMultiDeleteButton(false);
     } else {
-      const allOrderIds = filteredOrders.map((order) => order.$id);
+      const allOrderIds = filteredOrders.map((order) => order._id);
       setSelectedCheckBoxDelete(allOrderIds);
       setIsMultiDeleteButton(true);
     }
@@ -405,7 +370,7 @@ const EcommerceOrders = () => {
       );
       // Remove the deleted orders from master data
       setOrders((prevOrders) =>
-        prevOrders.filter((order) => !selectedCheckBoxDelete.includes(order.$id))
+        prevOrders.filter((order) => !selectedCheckBoxDelete.includes(order._id))
       );
       setSelectedCheckBoxDelete([]);
       setIsMultiDeleteButton(false);
@@ -458,12 +423,12 @@ const EcommerceOrders = () => {
 
         setLoading(true);
         try {
-          const orderId = selectedOrder.$id;
-          await db.Orders.update(orderId, updatedOrder);
+          const orderId = selectedOrder._id;
+          await axios.put(`http://localhost:5001/orders/${orderId}`, updatedOrder);
           // Update local state
           setOrders((prevOrders) =>
             prevOrders.map((order) =>
-              order.$id === orderId ? { ...order, ...updatedOrder } : order
+              order._id === orderId ? { ...order, ...updatedOrder } : order
             )
           );
           toast.success("Order updated successfully", { autoClose: 3000 });
@@ -505,14 +470,14 @@ const EcommerceOrders = () => {
           <input
             type="checkbox"
             className="orderCheckBox form-check-input"
-            value={cell.row.original.$id}
-            checked={selectedCheckBoxDelete.includes(cell.row.original.$id)}
-            onChange={() => handleCheckboxChange(cell.row.original.$id)}
+            value={cell.row.original._id}
+            checked={selectedCheckBoxDelete.includes(cell.row.original._id)}
+            onChange={() => handleCheckboxChange(cell.row.original._id)}
             aria-label={`Select Order ${cell.row.original.orderNumber}`}
           />
         ),
         id: "#",
-        accessorKey: "$id",
+        accessorKey: "_id",
         enableColumnFilter: false,
         enableSorting: false,
       },
@@ -599,7 +564,7 @@ const EcommerceOrders = () => {
             <ul className="list-inline hstack gap-2 mb-0">
               <li className="list-inline-item">
                 <Link
-                  to={`/dashboard/orders/${orderData.$id}`}
+                  to={`/dashboard/orders/${orderData._id}`}
                   className="text-primary d-inline-block"
                   aria-label={`View Order ${orderData.orderNumber}`}
                 >
@@ -679,7 +644,7 @@ const EcommerceOrders = () => {
         const latestRate = response.documents[0];
         setShippingRate(latestRate.shippingRate);
         setFreeDeliveryThreshold(latestRate.FreeDeliveryThreshold || 0);
-        setShippingRateDocId(latestRate.$id); // Store the document ID
+        setShippingRateDocId(latestRate._id); // Store the document ID
       }
     } catch (error) {
       console.error("Error fetching shipping rate:", error);
@@ -712,7 +677,7 @@ const EcommerceOrders = () => {
       } else {
         // Create new document if none exists
         const response = await db.ShippingRates.create(updatedData);
-        setShippingRateDocId(response.$id);
+        setShippingRateDocId(response._id);
       }
 
       toast.success("Shipping settings updated successfully");
@@ -725,7 +690,7 @@ const EcommerceOrders = () => {
     }
   };
 
-  document.title = "Orders | Iwalewah";
+  document.title = "Orders | CarBungalo";
 
   return (
     <div className="page-content">

@@ -33,6 +33,7 @@ import { useFormik } from "formik";
 
 // Import dbServices
 import db from "../../appwrite/Services/dbServices";
+import axios from "axios";
 
 const EcommerceVouchers = () => {
   // State Management
@@ -58,8 +59,8 @@ const EcommerceVouchers = () => {
   const fetchVouchers = async () => {
     setLoading(true);
     try {
-      const response = await db.Vouchers.list();
-      setVouchers(response.documents);
+      const response = await axios.get('http://localhost:5001/vouchers');
+      setVouchers(response);
     } catch (err) {
       console.error("Fetch Vouchers Error:", err);
       setError("Failed to fetch vouchers");
@@ -89,7 +90,7 @@ const EcommerceVouchers = () => {
   // Confirm Delete Voucher
   const confirmDelete = async () => {
     try {
-      await db.Vouchers.delete(selectedVoucher.$id);
+      await axios.delete(`http://localhost:5001/vouchers/${selectedVoucher._id}`);
       toast.success("Voucher deleted successfully");
       fetchVouchers();
       setDeleteModal(false);
@@ -104,13 +105,13 @@ const EcommerceVouchers = () => {
     enableReinitialize: true,
     initialValues: {
       code: selectedVoucher?.code || "",
-      discountValue: selectedVoucher?.discountValue || "",
+      discount: selectedVoucher?.discount || "",
     },
     validationSchema: Yup.object({
       code: Yup.string()
         .required("Voucher code is required")
         .min(3, "Voucher code must be at least 3 characters"),
-      discountValue: Yup.number()
+      discount: Yup.number()
         .required("Discount value is required")
         .positive("Discount value must be positive")
         .max(100, "Discount value cannot exceed 100"),
@@ -123,7 +124,7 @@ const EcommerceVouchers = () => {
       const duplicate = vouchers.find(
         (v) =>
           v.code.toUpperCase() === normalizedCode &&
-          (!isEdit || v.$id !== selectedVoucher.$id)
+          (!isEdit || v._id !== selectedVoucher._id)
       );
 
       if (duplicate) {
@@ -133,15 +134,15 @@ const EcommerceVouchers = () => {
 
       try {
         if (isEdit) {
-          await db.Vouchers.update(selectedVoucher.$id, {
+          await axios.put(`http://localhost:5001/vouchers/${selectedVoucher._id}`, {
             code: normalizedCode,
-            discountValue: parseFloat(values.discountValue),
+            discount: parseFloat(values.discount),
           });
           toast.success("Voucher updated successfully");
         } else {
-          await db.Vouchers.create({
+          await axios.post('http://localhost:5001/vouchers', {
             code: normalizedCode,
-            discountValue: parseFloat(values.discountValue),
+            discount: parseFloat(values.discount),
           });
           toast.success("Voucher created successfully");
         }
@@ -164,7 +165,7 @@ const EcommerceVouchers = () => {
       },
       {
         header: "Discount Value (%)",
-        accessorKey: "discountValue",
+        accessorKey: "discount",
         enableColumnFilter: false,
         cell: (cell) => `${cell.getValue()}%`,
       },
@@ -242,7 +243,7 @@ const EcommerceVouchers = () => {
                   <TableContainer
                     columns={columns}
                     data={vouchers}
-                    isGlobalFilter={true}
+                    isGlobalFilter={true} 
                     customPageSize={10}
                     divClass="table-responsive"
                     tableClass="align-middle table-nowrap"
@@ -286,21 +287,21 @@ const EcommerceVouchers = () => {
                 )}
               </div>
               <div className="mb-3">
-                <Label htmlFor="discountValue" className="form-label">
+                <Label htmlFor="discount" className="form-label">
                   Discount Value (%)
                 </Label>
                 <Input
                   type="number"
-                  id="discountValue"
-                  name="discountValue"
+                  id="discount"
+                  name="discount"
                   placeholder="Enter discount value"
-                  value={formik.values.discountValue}
+                  value={formik.values.discount}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
-                  invalid={formik.touched.discountValue && formik.errors.discountValue}
+                  invalid={formik.touched.discount && formik.errors.discount}
                 />
-                {formik.touched.discountValue && formik.errors.discountValue && (
-                  <FormFeedback>{formik.errors.discountValue}</FormFeedback>
+                {formik.touched.discount && formik.errors.discount && (
+                  <FormFeedback>{formik.errors.discount}</FormFeedback>
                 )}
               </div>
             </ModalBody>

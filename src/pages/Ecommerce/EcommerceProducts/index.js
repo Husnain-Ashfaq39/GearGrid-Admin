@@ -1,6 +1,6 @@
 // src/pages/Ecommerce/EcommerceProducts.js
 
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   Container,
   UncontrolledDropdown,
@@ -25,8 +25,6 @@ import db from "../../../appwrite/Services/dbServices";
 import storageServices from "../../../appwrite/Services/storageServices";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { Query } from "appwrite"; // Import Query from Appwrite SDK
-import { useQuery } from "react-query"; // Import useQuery from React Query
 import loading from "../../../assets/animations/loading.json";
 import search from "../../../assets/animations/search.json";
 import Lottie from "lottie-react";
@@ -48,56 +46,49 @@ const EcommerceProducts = () => {
   const [deleteModalMulti, setDeleteModalMulti] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
   const [dele, setDele] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Function to fetch all products with pagination
   const fetchAllProducts = async () => {
-   
-    let products = await axios.get('http://localhost:5001/api/products/all');
-    
-
-    // Map and parse the product data
-    products = products.map((product) => ({
-      ...product,
-      price: parseFloat(product.price),
-      isOnSale: Boolean(product.isOnSale),
-    }));
-
-    return products;
+    try {
+      let response = await axios.get('http://localhost:5001/api/products/all');
+      response=response.products;
+      
+      const products = response.map((product) => ({
+        ...product,
+        price: parseFloat(product.price),
+        isOnSale: Boolean(product.isOnSale),
+      }));
+      setProductList(products);
+      return products;
+    } catch (error) {
+      console.error("Failed to fetch products:", error);
+      toast.error("Failed to fetch products");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Function to fetch all categories with pagination
   const fetchAllCategories = async () => {
-   
-   
-      const categoryResponse = await axios.get('http://localhost:5001/categories/all');
-
-     
-
-    return categoryResponse;
+    try {
+      const response = await axios.get('http://localhost:5001/categories/all');
+      setCategories(response);
+    } catch (error) {
+      console.error("Failed to fetch categories:", error);
+      toast.error("Failed to fetch categories");
+    }
   };
 
-  // Fetch products using useQuery
-  const { data: productsData, isLoading: isProductsLoading } = useQuery(
-    "products",
-    fetchAllProducts
-  );
-
-  // Fetch categories using useQuery with pagination
-  const { data: categoriesData, isLoading: isCategoriesLoading } = useQuery(
-    "categories",
-    fetchAllCategories,
-    {
-      staleTime: Infinity,
-      cacheTime: Infinity,
-    }
-  );
+  useEffect(() => {
+    fetchAllProducts();
+    fetchAllCategories();
+  }, []);
 
   useEffect(() => {
-    if (productsData) {
-      setProductList(productsData);
-
+    if (productList.length > 0) {
       // Compute min and max prices
-      const prices = productsData.map((product) => product.price);
+      const prices = productList.map((product) => product.price);
       let minPrice = Math.min(...prices);
       let maxPrice = Math.max(...prices);
 
@@ -121,13 +112,7 @@ const EcommerceProducts = () => {
         maxCostInput.value = maxPrice;
       }
     }
-  }, [productsData]);
-
-  useEffect(() => {
-    if (categoriesData) {
-      setCategories(categoriesData);
-    }
-  }, [categoriesData]);
+  }, [productList]);
 
   // Filter products whenever filters change
   useEffect(() => {
@@ -136,13 +121,8 @@ const EcommerceProducts = () => {
 
   // Function to get category name from ID
   const getCategoryName = (categoryId) => {
-    const category = categories.find((cat) => cat.$id === categoryId);
+    const category = categories.find((cat) => cat._id === categoryId);
     return category ? category.name : "Unknown";
-  };
-
-  // Function to get image URL
-  const getImageURL = (imageId) => {
-    return storageServices.images.getFilePreview(imageId);
   };
 
   // Function to filter products based on active filters
@@ -159,7 +139,6 @@ const EcommerceProducts = () => {
       (product) =>
         product.price >= priceRange.min && product.price <= priceRange.max
     );
-
 
     // On Sale filter
     if (isOnSaleFilter) {
@@ -297,7 +276,7 @@ const EcommerceProducts = () => {
       "$id": product._id,
       "name": product.name,
       "barcode": product.barcode,
-      "category": getCategoryName(product.categoryId),
+      "category": product.categoryId,
       "price": product.price,
       "isOnSale": product.isOnSale ? "Yes" : "No",
      
@@ -474,8 +453,6 @@ const EcommerceProducts = () => {
                   <i className="ri-eye-fill align-bottom me-2 text-muted"></i> View
                 </DropdownItem>
 
-               
-
                 <DropdownItem divider />
                 <DropdownItem
                   href="#"
@@ -649,8 +626,6 @@ const EcommerceProducts = () => {
                 </div>
               </div>
 
-             
-              
             </Card>
           </Col>
 
@@ -693,7 +668,7 @@ const EcommerceProducts = () => {
                   </Row>
                 </div>
                 <div className="card-body pt-0">
-                  {isProductsLoading || isCategoriesLoading ? (
+                  {isLoading ? (
                     <div className="py-4 text-center d-flex flex-column align-items-center justify-content-center" style={{ height: "300px" }}>
                       <Lottie animationData={loading} style={{ width: 100, height: 100 }} loop={true} />
                       <div className="mt-4">

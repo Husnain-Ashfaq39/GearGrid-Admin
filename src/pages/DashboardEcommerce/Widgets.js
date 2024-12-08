@@ -8,6 +8,7 @@ import db from '../../appwrite/Services/dbServices';
 import { Query } from "appwrite";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import axios from 'axios';
 
 const Widgets = () => {
     // State variables for each widget
@@ -51,22 +52,19 @@ const Widgets = () => {
         const fetchData = async () => {
             setLoading(true);
             try {
-                // 1. Total Earnings: Sum of totalPrice from Orders where orderStatus != "Returns"
-                const earningsQuery = [
-                    Query.notEqual('orderStatus', 'Returns')
-                ];
-                const earningsDocuments = await fetchAllDocuments(db.Orders, earningsQuery);
-                const earnings = earningsDocuments.reduce((acc, order) => acc + (order.totalPrice || 0), 0);
-                setTotalEarnings(earnings);
+               
+                const {totalEarnings} = await axios.get('http://localhost:5001/orders/earnings/total');
+               
+                setTotalEarnings(totalEarnings);
 
                 // 2. Total Orders: Count of Orders
                 // Using a single request as Appwrite provides the total count
-                const ordersResponse = await db.Orders.list([Query.limit(1)]);
-                setTotalOrders(ordersResponse.total);
+                const ordersResponse = await axios.get('http://localhost:5001/orders/all');
+                setTotalOrders(ordersResponse.length);
 
                 // 3. Total Customers: Count of Users
-                const customersResponse = await db.Users.list([Query.limit(1)]);
-                setTotalCustomers(customersResponse.total);
+                const customersResponse = await axios.get('http://localhost:5001/user/getAllCustomers');
+                setTotalCustomers(customersResponse.length);
 
                 // 4. My Balance: Sum of totalPrice from Orders where orderStatus != "Returns" and "Pickups" and paymentStatus != "cashOnDelivery"
                 const balanceQuery = [

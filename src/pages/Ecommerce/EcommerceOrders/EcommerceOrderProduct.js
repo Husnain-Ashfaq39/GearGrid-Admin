@@ -28,7 +28,7 @@ const EcommerceOrderProduct = ({ item }) => {
             <img
               src={
                 images.length > 0
-                  ? getImageURL(images[0])
+                  ?images[0]
                   : "/assets/images/products/default-product.jpg" // Ensure a default product image exists
               }
               alt={productName}

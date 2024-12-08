@@ -14,6 +14,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import moment from "moment";
 import TableContainer from "../../Components/Common/TableContainer"; // Ensure correct import path
+import axios from "axios";
 
 const RecentOrders = () => {
   const [orders, setOrders] = useState([]);
@@ -46,11 +47,7 @@ const RecentOrders = () => {
     setLoading(true);
     setError(null);
     try {
-      const ordersResponse = await db.Orders.list([
-        Query.orderDesc("createdAt"),
-        Query.limit(5),
-      ]);
-      const fetchedOrders = ordersResponse.documents;
+      const fetchedOrders = await axios.get('http://localhost:5001/orders/all');
       setOrders(fetchedOrders);
 
       if (fetchedOrders.length === 0) {
@@ -94,7 +91,7 @@ const RecentOrders = () => {
     () => [
       {
         header: "Order ID",
-        accessorKey: "$id",
+        accessorKey: "_id",
         cell: (cell) => (
           <Link
             to={`/apps-ecommerce-order-details/${cell.getValue()}`}
@@ -105,12 +102,6 @@ const RecentOrders = () => {
         ),
         minWidth: "120px", // Set a minimum width
       },
-    //   {
-    //     header: "Customer",
-    //     accessorKey: "userId",
-    //     cell: (cell) => usersMap[cell.getValue()]?.name || "N/A",
-    //     minWidth: "150px", // Set a minimum width
-    //   },
       {
         header: "Order Date",
         accessorKey: "createdAt",
