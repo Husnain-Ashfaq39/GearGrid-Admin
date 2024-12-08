@@ -47,20 +47,28 @@ const EcommerceProducts = () => {
   const [productToDelete, setProductToDelete] = useState(null);
   const [dele, setDele] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1); // New state for current page
+  const [totalPages, setTotalPages] = useState(1); // New state for total pages
 
   // Function to fetch all products with pagination
-  const fetchAllProducts = async () => {
+  const fetchAllProducts = async (page = 1, limit = 10) => {
     try {
-      let response = await axios.get('http://localhost:5001/api/products/all');
-      response=response.products;
-      
-      const products = response.map((product) => ({
-        ...product,
-        price: parseFloat(product.price),
-        isOnSale: Boolean(product.isOnSale),
-      }));
-      setProductList(products);
-      return products;
+      let response = await axios.get(`http://localhost:5001/api/products/all?page=${page}&limit=${limit}`);
+      response = response; // Ensure we are accessing the data property
+      if (response && response.products && response.pagination) {
+        setTotalPages(response.pagination.totalPages); // Set total pages from response
+        console.log('total products ' + response.products.length);
+        
+        const products = response.products.map((product) => ({
+          ...product,
+          price: parseFloat(product.price),
+          isOnSale: Boolean(product.isOnSale),
+        }));
+        setProductList(products);
+        return products;
+      } else {
+        throw new Error("Invalid response structure");
+      }
     } catch (error) {
       console.error("Failed to fetch products:", error);
       toast.error("Failed to fetch products");
@@ -68,6 +76,17 @@ const EcommerceProducts = () => {
       setIsLoading(false);
     }
   };
+
+  // Function to handle page change
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    fetchAllProducts(newPage); // Fetch products for the new page
+  };
+
+  // Update useEffect to fetch products on page change
+  useEffect(() => {
+    fetchAllProducts(currentPage); // Fetch products when currentPage changes
+  }, [currentPage]);
 
   // Function to fetch all categories with pagination
   const fetchAllCategories = async () => {
@@ -689,6 +708,9 @@ const EcommerceProducts = () => {
                       SearchPlaceholder="Search by product name or barcode..."
                       globalFilterFn="fuzzy"
                       filterFields={["name", "barcode"]}
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={handlePageChange}
                     />
                   ) : (
                     <div className="py-4 text-center d-flex flex-column align-items-center justify-content-center" style={{ height: "300px" }}>

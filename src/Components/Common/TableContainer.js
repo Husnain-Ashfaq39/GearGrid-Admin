@@ -79,6 +79,9 @@ const TableContainer = ({
   SearchPlaceholder,
   globalFilterFn, // Expected to be a string that maps to a filter function
   filterFields = [], // Array of field names to search on
+  currentPage, // New prop for current page
+  totalPages, // New prop for total pages
+  onPageChange, // New prop for handling page changes
 }) => {
   const [globalFilter, setGlobalFilter] = useState("");
 
@@ -249,75 +252,26 @@ const TableContainer = ({
       </div>
 
       <Row className="align-items-center mt-2 g-3 text-center text-sm-start">
-        <div className="col-sm">
-          <div className="text-muted">
-            Showing
-            <span className="fw-semibold ms-1">
-              {data.length > 0
-                ? currentPageIndex * getState().pagination.pageSize + 1
-                : 0}
-            </span>
-            to
-            <span className="fw-semibold ms-1">
-              {Math.min(
-                (currentPageIndex + 1) * getState().pagination.pageSize,
-                data.length
-              )}
-            </span>
-            of
-            <span className="fw-semibold"> {data.length}</span> Results
-          </div>
-        </div>
         <div className="col-sm-auto">
           <ul className="pagination pagination-separated pagination-md justify-content-center justify-content-sm-start mb-0">
-            <li
-              className={
-                !getCanPreviousPage() ? "page-item disabled" : "page-item"
-              }
-            >
-              <Link
-                to="#"
-                className="page-link"
-                onClick={() => previousPage()}
-              >
+            <li className={currentPage === 1 ? "page-item disabled" : "page-item"}>
+              <Link to="#" className="page-link" onClick={() => onPageChange(currentPage - 1)}>
                 Previous
               </Link>
             </li>
-            {pageNumbers.map((item, key) => {
-              if (item === "ellipsis") {
-                return (
-                  <li key={key} className="page-item disabled">
-                    <span className="page-link">...</span>
-                  </li>
-                );
-              } else {
-                return (
-                  <li key={key} className="page-item">
-                    <Link
-                      to="#"
-                      className={
-                        currentPageIndex === item
-                          ? "page-link active"
-                          : "page-link"
-                      }
-                      onClick={() => setPageIndex(item)}
-                    >
-                      {item + 1}
-                    </Link>
-                  </li>
-                );
-              }
-            })}
-            <li
-              className={
-                !getCanNextPage() ? "page-item disabled" : "page-item"
-              }
-            >
-              <Link
-                to="#"
-                className="page-link"
-                onClick={() => nextPage()}
-              >
+            {[...Array(totalPages)].map((_, index) => (
+              <li key={index} className="page-item">
+                <Link
+                  to="#"
+                  className={currentPage === index + 1 ? "page-link active" : "page-link"}
+                  onClick={() => onPageChange(index + 1)}
+                >
+                  {index + 1}
+                </Link>
+              </li>
+            ))}
+            <li className={currentPage === totalPages ? "page-item disabled" : "page-item"}>
+              <Link to="#" className="page-link" onClick={() => onPageChange(currentPage + 1)}>
                 Next
               </Link>
             </li>
