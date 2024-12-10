@@ -1,43 +1,37 @@
-import { useQuery } from "react-query";
-import { Query } from "appwrite";
-import db from "../appwrite/Services/dbServices";
+import { useEffect, useState } from "react";
+import axios from "axios";
 
 export const useProducts = () => {
+  const [products, setProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
+
   // Function to fetch all products with pagination
   const fetchAllProducts = async () => {
-    let products = [];
-    let offset = 0;
-    const limit = 100;
+    try {
+      const response = await axios.get('http://localhost:5001/api/products/all');
+      let { products } = response; // Adjusted to access data correctly
+      // Map and parse the product data
+      products = products.map((product) => ({
+        ...product,
+        price: parseFloat(product.price),
+        isOnSale: Boolean(product.isOnSale),
+        isWholesaleProduct: Boolean(product.isWholesaleProduct),
+        stockQuantity: parseInt(product.stockQuantity),
+      }));
 
-    while (true) {
-      const productResponse = await db.Products.list([
-        Query.limit(limit),
-        Query.offset(offset),
-      ]);
-
-      products = products.concat(productResponse.documents);
-
-      if (productResponse.documents.length < limit) {
-        break;
-      }
-
-      offset += limit;
+      setProducts(products);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      setIsError(true);
+    } finally {
+      setIsLoading(false);
     }
-
-    // Map and parse the product data
-    products = products.map((product) => ({
-      ...product,
-      price: parseFloat(product.price),
-      isOnSale: Boolean(product.isOnSale),
-      isWholesaleProduct: Boolean(product.isWholesaleProduct),
-      stockQuantity: parseInt(product.stockQuantity),
-    }));
-
-    return products;
   };
 
-  return useQuery("products", fetchAllProducts, {
-    staleTime: Infinity,
-    cacheTime: Infinity,
-  });
+  useEffect(() => {
+    fetchAllProducts();
+  }, []);
+
+  return { data: products, isLoading, isError };
 };

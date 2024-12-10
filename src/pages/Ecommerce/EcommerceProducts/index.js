@@ -206,11 +206,11 @@ const EcommerceProducts = () => {
         }
 
         // Delete the product document
-        await db.Products.delete(productToDelete.$id);
+        await db.Products.delete(productToDelete._id);
         setDeleteModal(false);
 
         // Remove the deleted product from the state
-        setProductList(productList.filter((p) => p.$id !== productToDelete.$id));
+        setProductList(productList.filter((p) => p._id !== productToDelete._id));
 
         toast.success("Product deleted successfully");
       } catch (error) {
@@ -240,7 +240,7 @@ const EcommerceProducts = () => {
       await Promise.all(
         Array.from(ele).map(async (element) => {
           const productId = element.value;
-          const product = productList.find((p) => p.$id === productId);
+          const product = productList.find((p) => p._id === productId);
 
           // Delete associated images
           if (product && product.images && product.images.length > 0) {
@@ -257,7 +257,7 @@ const EcommerceProducts = () => {
       );
       // Remove the deleted products from the state
       const deletedIds = Array.from(ele).map((element) => element.value);
-      setProductList(productList.filter((p) => !deletedIds.includes(p.$id)));
+      setProductList(productList.filter((p) => !deletedIds.includes(p._id)));
       del.style.display = "none";
       setDele(0);
       setDeleteModalMulti(false);
@@ -273,7 +273,7 @@ const EcommerceProducts = () => {
   const convertToCSV = (data) => {
     // Define the headers you want in the CSV
     const headers = [
-      "$id",
+      "_id",
       "name",
       "barcode",
       "category",
@@ -292,7 +292,7 @@ const EcommerceProducts = () => {
 
     // Map the data to include necessary transformations
     const rows = data.map((product) => ({
-      "$id": product._id,
+      "_id": product._id,
       "name": product.name,
       "barcode": product.barcode,
       "category": product.categoryId,
@@ -362,7 +362,7 @@ const EcommerceProducts = () => {
     () => [
       {
         header: "#",
-        accessorKey: "$id",
+        accessorKey: "_id",
         enableColumnFilter: false,
         enableSorting: false,
         cell: (cell) => {
@@ -563,15 +563,15 @@ const EcommerceProducts = () => {
                     </Link>
                   </li>
                   {categories.map((category) => (
-                    <li key={category.$id}>
+                    <li key={category._id}>
                       <Link
                         to="#"
                         className={
-                          categoryFilter === category.$id
+                          categoryFilter === category._id
                             ? "active d-flex py-1 align-items-center"
                             : "d-flex py-1 align-items-center"
                         }
-                        onClick={() => categoriesFilter(category.$id)}
+                        onClick={() => categoriesFilter(category._id)}
                       >
                         <div className="flex-grow-1">
                           <h5 className="fs-13 mb-0 listname">{category.name}</h5>

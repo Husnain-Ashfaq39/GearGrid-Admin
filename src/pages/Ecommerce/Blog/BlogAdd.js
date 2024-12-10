@@ -23,6 +23,7 @@ import ClassicEditor from "@ckeditor/ckeditor5-build-classic";
 import BreadCrumb from "../../../Components/Common/BreadCrumb";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import axios from "axios";
 
 const BlogAdd = () => {
   const navigate = useNavigate();
@@ -51,24 +52,21 @@ const BlogAdd = () => {
         }
 
         // Upload image to storage
-        const uploadedImage = await storageServices.images.createFile(selectedFile);
-        const imageId = uploadedImage.$id;
+       
 
         // Prepare blog data
         const cleanedTags = values.tags.split(",").map((tag) => tag.trim());
 
-        const blogData = {
-          title: values.title,
-          author: values.author,
-          tags: cleanedTags,
-          content: values.content,
-          imageUrl: imageId,
-          publicationDate: new Date().toISOString(),
-          views: 0,
-        };
-
+       
+        const formData = new FormData();
+        formData.append("image", selectedFile);  // Append the single file directly
+    
+        // Append form data values
+        Object.entries(values).forEach(([key, value]) => formData.append(key, value));
         // Save blog to database
-        await db.blogs.create(blogData);
+        await axios.post('http://localhost:5001/blogs', formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
 
         toast.success("Blog has been published successfully");
         navigate("/bloglist");

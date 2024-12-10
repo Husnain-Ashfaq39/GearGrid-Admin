@@ -29,6 +29,7 @@ import "react-toastify/dist/ReactToastify.css";
 import Lottie from "lottie-react";
 import loadingAnimation from "../../../assets/animations/loading.json";
 import noDataAnimation from "../../../assets/animations/search.json";
+import axios from "axios";
 
 const BlogEdit = () => {
   const navigate = useNavigate();
@@ -44,14 +45,13 @@ const BlogEdit = () => {
     const fetchBlog = async () => {
       try {
         setIsLoading(true); // Start loading
-        const blog = await db.blogs.get(id);
+        const response = await axios.get(`http://localhost:5001/blogs/${id}`);
+        const blog = response;
         setBlogData(blog);
 
         // Fetch existing image URL
-        const imageUrlResponse = storageServices.images.getFilePreview(
-          blog.imageUrl
-        );
-        setExistingImageUrl(imageUrlResponse.href);
+        
+        setExistingImageUrl(response.image);
       } catch (error) {
         console.error("Failed to fetch blog:", error);
         toast.error("Failed to fetch blog data");
@@ -79,35 +79,15 @@ const BlogEdit = () => {
     }),
     onSubmit: async (values) => {
       try {
-        let imageId = blogData.imageUrl;
+ 
+        const formData = new FormData();
+        formData.append("image", selectedFile);  // Append the single file directly
 
-        // If a new image is selected
-        if (selectedFile) {
-          // Upload new image
-          const uploadedImage = await storageServices.images.createFile(
-            selectedFile
-          );
-          imageId = uploadedImage.$id;
-
-          // Delete old image
-          if (blogData.imageUrl) {
-            await storageServices.images.deleteFile(blogData.imageUrl);
-          }
-        }
-
-        // Prepare blog data
-        const cleanedTags = values.tags.split(",").map((tag) => tag.trim());
-
-        const updatedBlogData = {
-          title: values.title,
-          author: values.author,
-          tags: cleanedTags,
-          content: values.content,
-          imageUrl: imageId,
-        };
-
-        // Update blog in database
-        await db.blogs.update(id, updatedBlogData);
+        Object.entries(values).forEach(([key, value]) => formData.append(key, value));
+        // Update the category in the Appwrite database
+        await axios.put(`http://localhost:5001/blogs/${id}`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
 
         toast.success("Blog updated successfully");
         navigate("/bloglist");
@@ -310,13 +290,21 @@ const BlogEdit = () => {
                     </div>
                   </div>
                   {existingImageUrl && (
-                    <div className="mt-3">
+                    <div className="mt-3 position-relative d-inline-block">
                       <img
                         src={existingImageUrl}
                         alt="Selected"
                         className="img-thumbnail"
                         width="200"
                       />
+                      <Button
+                        color="danger"
+                        size="sm"
+                        className="position-absolute top-0 end-0"
+                        onClick={() => setExistingImageUrl(null)}
+                      >
+                        <i className="ri-close-line"></i>
+                      </Button>
                     </div>
                   )}
                 </CardBody>

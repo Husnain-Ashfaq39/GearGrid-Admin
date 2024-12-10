@@ -11,6 +11,7 @@ export const NotificationProvider = ({ children }) => {
   const [unseenCount, setUnseenCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const { data: products, isLoading, isError, error } = useProducts(); // Destructure isLoading and isError
+console.log('data '+products);
 
   useEffect(() => {
     if (products) {

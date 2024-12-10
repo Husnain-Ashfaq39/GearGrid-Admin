@@ -95,17 +95,12 @@ const EcommerceCategories = () => {
 
     try {
       setIsLoading(true);
-      // Delete associated images
-      if (categoryToDelete.image && categoryToDelete.image.length > 0) {
-        const deleteImagesPromises = categoryToDelete.image.map((imageId) =>
-          safeDeleteFile(imageId)
-        );
-        await Promise.all(deleteImagesPromises);
-      }
+     
+      
       // Delete the category
-      await db.Categories.delete(categoryToDelete.$id);
-      setCategoryList(categoryList.filter((c) => c.$id !== categoryToDelete.$id));
-      setFilteredCategoryList(filteredCategoryList.filter((c) => c.$id !== categoryToDelete.$id));
+      await axios.delete(`http://localhost:5001/categories/${categoryToDelete._id}`);
+      setCategoryList(categoryList.filter((c) => c._id !== categoryToDelete._id));
+      setFilteredCategoryList(filteredCategoryList.filter((c) => c._id !== categoryToDelete._id));
       setDeleteModal(false);
       setCategoryToDelete(null);
       toast.success("Category deleted successfully.");
@@ -158,7 +153,7 @@ const EcommerceCategories = () => {
         enableColumnFilter: false,
         cell: (cell) => (
           <Link
-            to={`/apps-ecommerce-edit-category/${cell.row.original.$id}`}
+            to={`/apps-ecommerce-edit-category/${cell.row.original._id}`}
             className="text-body"
           >
             {cell.getValue()}
@@ -171,7 +166,7 @@ const EcommerceCategories = () => {
         enableColumnFilter: false,
         cell: (cell) => {
           const parentCategoryId = cell.getValue();
-          const parentCategory = categoryList.find((c) => c.$id === parentCategoryId);
+          const parentCategory = categoryList.find((c) => c._id === parentCategoryId);
           return parentCategory ? parentCategory.name : "Main";
         },
       },
@@ -195,7 +190,7 @@ const EcommerceCategories = () => {
             <DropdownMenu className="dropdown-menu-end">
               <DropdownItem
                 tag={Link}
-                to={`/apps-ecommerce-edit-category/${cell.row.original.$id}`}
+                to={`/apps-ecommerce-edit-category/${cell.row.original._id}`}
               >
                 <i className="ri-pencil-fill align-bottom me-2 text-muted"></i> Edit
               </DropdownItem>

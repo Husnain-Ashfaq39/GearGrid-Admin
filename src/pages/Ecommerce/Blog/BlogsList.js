@@ -16,15 +16,13 @@ import DeleteModal from "../../../Components/Common/DeleteModal";
 import BreadCrumb from "../../../Components/Common/BreadCrumb";
 import TableContainer from "../../../Components/Common/TableContainer";
 import { Link } from "react-router-dom";
-import db from "../../../appwrite/Services/dbServices";
 import storageServices from "../../../appwrite/Services/storageServices";
-import { Query } from "appwrite"; // Import the Query from Appwrite
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-// Import Lottie and animations
 import Lottie from "lottie-react";
 import loadingAnimation from "../../../assets/animations/loading.json";
 import noDataAnimation from "../../../assets/animations/search.json";
+import axios from "axios";
 
 const BlogsList = () => {
   const [blogsList, setBlogsList] = useState([]);
@@ -38,28 +36,15 @@ const BlogsList = () => {
 
   useEffect(() => {
     const fetchBlogs = async () => {
-      if (!hasMore) return; // If no more blogs are available, stop fetching
+     
 
       try {
         setIsLoading(true);
 
-        const queries = [Query.limit(limit)];
-        if (cursor) {
-          queries.push(Query.cursorAfter(cursor)); // Pagination handling
-        }
+       
 
-        const response = await db.blogs.list(queries);
-        const blogs = response.documents || [];
-
-        if (blogs.length < limit) {
-          setHasMore(false); // If fetched data is less than limit, we have reached the end
-        }
-
-        if (blogs.length > 0) {
-          setCursor(blogs[blogs.length - 1].$id); // Set the cursor for the next batch
-        }
-
-        setBlogsList((prev) => [...prev, ...blogs]); // Append new blogs to the list
+        const response = await axios.get("http://localhost:5001/blogs")
+        setBlogsList(response);
 
       } catch (error) {
         console.error("Failed to fetch blogs:", error);
@@ -80,17 +65,14 @@ const BlogsList = () => {
   const handleDeleteBlog = async () => {
     if (blogToDelete) {
       try {
-        // Delete associated image
-        if (blogToDelete.imageUrl) {
-          await storageServices.images.deleteFile(blogToDelete.imageUrl);
-        }
+      
 
         // Delete the blog document
-        await db.blogs.delete(blogToDelete.$id);
+        await axios.delete(`http://localhost:5001/blogs/${blogToDelete._id}`);
         setDeleteModal(false);
 
         // Remove the deleted blog from the state
-        setBlogsList(blogsList.filter((b) => b.$id !== blogToDelete.$id));
+        setBlogsList(blogsList.filter((b) => b._id !== blogToDelete._id));
 
         toast.success("Blog deleted successfully");
       } catch (error) {
@@ -121,7 +103,7 @@ const BlogsList = () => {
         id: "image",
         cell: (info) => (
           <img
-            src={getImageURL(info.row.original.imageUrl)}
+            src={info.row.original.image}
             alt="Image"
             className="img-thumbnail"
             style={{ width: "100px", height: "100px", objectFit: "cover" }}
@@ -151,7 +133,7 @@ const BlogsList = () => {
                 <i className="ri-more-fill" />
               </DropdownToggle>
               <DropdownMenu className="dropdown-menu-end">
-                <DropdownItem tag={Link} to={`/editblog/${blogData.$id}`}>
+                <DropdownItem tag={Link} to={`/editblog/${blogData._id}`}>
                   <i className="ri-pencil-fill align-bottom me-2 text-muted"></i>{" "}
                   Edit
                 </DropdownItem>

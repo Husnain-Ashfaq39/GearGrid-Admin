@@ -18,6 +18,7 @@ import { account } from "../../appwrite/config";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import BreadCrumb from "../../Components/Common/BreadCrumb";
+import axios from "axios";
 
 const ChangePassword = () => {
   const [loading, setLoading] = useState(false);
@@ -54,7 +55,16 @@ const ChangePassword = () => {
 
       try {
         // Update password using Appwrite account API
-        await account.updatePassword(values.newPassword, values.currentPassword);
+        const userId = localStorage.getItem('userId');
+        await axios.put(`http://localhost:5001/user/changePassword/${userId}`, {
+          oldPassword: values.currentPassword,
+          newPassword: values.newPassword,
+          confirmNewPassword: values.confirmPassword
+        }, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          }
+        });
         
         toast.success("Password changed successfully!");
         resetForm();

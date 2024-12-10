@@ -56,26 +56,13 @@ const Login = () => {
     }),
     onSubmit: async (values, { setSubmitting }) => {
       try {
-        if (!requiresMFA) {
-          const result = await signIn(values.email, values.password);
 
-          if (result.requiresMFA) {
-            // Create MFA challenge
-            const challenge = await createMfaChallenge("email"); // Use 'email' for email-based MFA
-            setChallengeId(challenge.$id);
-            setRequiresMFA(true);
-          } else if (result.requiresMfaSetup) {
-            // Redirect to MFA setup page
-            setRequiresMfaSetup(true);
-          } else {
-            // Successful login without MFA
-            navigate("/");
-          }
-        } else {
-          // Complete MFA challenge
-          await completeMfaChallenge(challengeId, values.mfaCode);
+        const result = await signIn(values.email, values.password);
+        console.log(result);
+        if (result.userId) {
           navigate("/");
         }
+
       } catch (error) {
         setErrorMessage(error.message || "Login failed. Please try again.");
         console.error("Login failed:", error);
@@ -185,13 +172,13 @@ const Login = () => {
                                   value={formik.values.password}
                                   invalid={
                                     formik.touched.password &&
-                                    formik.errors.password
+                                      formik.errors.password
                                       ? true
                                       : false
                                   }
                                 />
                                 {formik.touched.password &&
-                                formik.errors.password ? (
+                                  formik.errors.password ? (
                                   <FormFeedback>
                                     {formik.errors.password}
                                   </FormFeedback>
@@ -202,9 +189,8 @@ const Login = () => {
                                   onClick={() => setPasswordShow(!passwordShow)}
                                 >
                                   <i
-                                    className={`ri-eye-${
-                                      passwordShow ? "close-fill" : "fill"
-                                    } align-middle`}
+                                    className={`ri-eye-${passwordShow ? "close-fill" : "fill"
+                                      } align-middle`}
                                   ></i>
                                 </button>
                               </div>
@@ -227,13 +213,13 @@ const Login = () => {
                               value={formik.values.mfaCode}
                               invalid={
                                 formik.touched.mfaCode &&
-                                formik.errors.mfaCode
+                                  formik.errors.mfaCode
                                   ? true
                                   : false
                               }
                             />
                             {formik.touched.mfaCode &&
-                            formik.errors.mfaCode ? (
+                              formik.errors.mfaCode ? (
                               <FormFeedback>
                                 {formik.errors.mfaCode}
                               </FormFeedback>

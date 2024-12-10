@@ -1,137 +1,161 @@
 // src/appwrite/Services/authServices.js
 
-import { account, teams } from "../config";
-import { Query } from "appwrite";
+import { account } from "../config";
+import axios from "axios";
+import { jwtDecode } from 'jwt-decode';
 
-export async function registerUser(username, email, password) {
-  const user = await account.create("unique()", email, password, username);
-  localStorage.setItem("authToken", user.$id);
-  return user;
-}
 
-export const getUserRoles = async (userId) => {
+
+// Utility function to decode JWT and extract roles
+const getUserRolesFromToken = (token) => {
   try {
-    const DASHBOARD_TEAM_ID = '671ca690003781eae833';
-
-    // Fetch all the memberships in the Dashboard team
-    const limit = 25;
-    let offset = 0;
-    let memberships = [];
-    let totalMemberships = [];
-
-    do {
-      const response = await teams.listMemberships(DASHBOARD_TEAM_ID, [
-        Query.limit(limit),
-        Query.offset(offset),
-      ]);
-      memberships = response.memberships;
-      totalMemberships = totalMemberships.concat(memberships);
-      offset += limit;
-    } while (memberships.length === limit);
-
-    // Find the membership for the user
-    const userMembership = totalMemberships.find(
-      (membership) => membership.userId === userId
-    );
-
-    if (!userMembership) {
-      throw new Error('User is not a member of the Dashboard team');
-    }
-
-    // Normalize roles to lowercase
-    const userRoles = userMembership.roles.map(role => role.toLowerCase());
-
-    // Return the roles
-    return userRoles;
+    const decoded = jwtDecode(token);
+    // Assuming the role is stored as a string in the token
+    return [decoded.role];
   } catch (error) {
-    console.error('Error fetching user roles:', error);
+    console.error("Failed to decode JWT:", error);
     return [];
-  }
-};
-
-/**
- * Signs in a user and handles MFA if required.
- * @param {string} email - The user's email address.
- * @param {string} password - The user's password.
- * @returns {Promise<Object>} The session object along with MFA requirement.
- */
-export const signIn = async (email, password) => {
-  try {
-    // Delete existing session if any
-    try {
-      const currentSession = await account.getSession('current');
-      if (currentSession) {
-        await account.deleteSession('current');
-        localStorage.removeItem("authToken");
-        localStorage.removeItem("userId");
-      }
-    } catch (error) {
-      // No existing session
-    }
-
-    // Authenticate the user
-    const session = await account.createEmailPasswordSession(email, password);
-
-    // Check for multi-factor authentication requirement
-    try {
-      await account.get(); // Attempt to get user data
-      // If successful, MFA is not required
-      const user = await getCurrentUser();
-
-      // Check if MFA is required but not enabled
-      if (user.prefs.mfaRequired && !user.prefs.mfaEnabled) {
-        return {
-          session,
-          userId: session.userId,
-          requiresMfaSetup: true,
-        };
-      }
-
-      // Proceed to normal login flow
-      await handleSuccessfulLogin(session);
-      return {
-        session,
-        userId: session.userId,
-        roles: JSON.parse(localStorage.getItem("userRoles")),
-        requiresMFA: false,
-      };
-    } catch (error) {
-      if (error.type === 'user_more_factors_required') {
-        // MFA is required
-        return {
-          session,
-          userId: session.userId,
-          requiresMFA: true,
-        };
-      } else {
-        throw error;
-      }
-    }
-  } catch (error) {
-    console.error("Login error:", error);
-    throw error;
   }
 };
 
 // Handle successful login
 const handleSuccessfulLogin = async (session) => {
-  localStorage.setItem("authToken", session.$id);
-  localStorage.setItem("userId", session.userId);
-
-  // Get user roles
-  const userRoles = await getUserRoles(session.userId);
-
+  localStorage.setItem("authToken", session);
+  
+  // Decode the JWT to get user roles
+  const userRoles = getUserRolesFromToken(session);
+  
   if (!userRoles || userRoles.length === 0) {
-    // Delete session if no roles assigned
-    await account.deleteSession(session.$id);
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("userId");
+    // If no roles are found, you might want to handle it differently
+    // For example, you can log out the user or assign default roles
     throw new Error("User has no roles assigned.");
   }
 
   // Store user roles
   localStorage.setItem("userRoles", JSON.stringify(userRoles));
 };
+
+export const signIn = async (email, password) => {
+  try {
+    // Clear existing session data
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("userRoles");
+
+    // Authenticate the user by calling the custom login API
+    const { session, userId } = await axios.post('http://localhost:5001/api/auth/login', { // Replace with your actual login endpoint
+      email,
+      password
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!session.ok) {
+      console.log();
+      
+    }
+
+    // Store the session and userId
+    localStorage.setItem("authToken", session);
+    localStorage.setItem("userId", userId);
+
+    // Fetch current user data
+    const userResponse = await axios.get(`http://localhost:5001/user/getUser/${userId}`, { // Replace with your actual user endpoint
+      headers: {
+        'Authorization': `Bearer ${session}`
+      }
+    });
+
+    if (userResponse.status !== 200) {
+      console.log(userResponse);
+    }
+    // Change _id to $id in the response
+    const userResponseData = userResponse
+    userResponseData.$id = userResponseData._id;
+    delete userResponseData._id;
+
+    // // Check if MFA is required but not enabled
+    // if (user.prefs && user.prefs.mfaRequired && !user.prefs.mfaEnabled) {
+    //   return {
+    //     session,
+    //     userId,
+    //     requiresMfaSetup: true,
+    //   };
+    // }
+
+    // Handle successful login (e.g., store roles)
+    await handleSuccessfulLogin(session);
+
+    return {
+      session,
+      userId,
+      roles: JSON.parse(localStorage.getItem("userRoles")),
+    };
+
+  } catch (error) {
+    console.error("Login error:", error);
+    throw error;
+  }
+};
+
+export const getCurrentUser = async () => {
+  try {
+    const userId = localStorage.getItem('userId');
+    const response = await axios.get(`http://localhost:5001/user/getUser/${userId}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+      }
+    });
+    return response;
+  } catch (error) {
+    console.error("Error fetching current user:", error);
+    throw error;
+  }
+};
+
+export const checkAuth = () => {
+  const userId = localStorage.getItem('userId');
+  return !!userId;
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /**
  * Creates an MFA challenge for the user.
@@ -217,7 +241,6 @@ export const updateUserPreferences = async (prefs) => {
 
 export const signOutUser = async () => {
   try {
-    await account.deleteSession('current');
     localStorage.removeItem("authToken");
     localStorage.removeItem("userId");
     localStorage.removeItem("userRoles");
@@ -226,23 +249,7 @@ export const signOutUser = async () => {
   }
 };
 
-export const getCurrentUser = async () => {
-  try {
-    const user = await account.get();
-    return user;
-  } catch (error) {
-    throw error;
-  }
-};
 
-export const checkAuth = async () => {
-  try {
-    await account.get();
-    return true;
-  } catch (error) {
-    return false;
-  }
-};
 
 export const sendPasswordRecoveryEmail = async (email) => {
   const resetPasswordUrl = `${window.location.origin}/reset-password`;

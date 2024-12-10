@@ -27,6 +27,7 @@ import Select from "react-select";
 import { Query } from "appwrite";
 import Lottie from "lottie-react";
 import loading from "../../../assets/animations/loading.json";
+import axios from "axios";
 
 const EcommerceEditCategory = () => {
   const navigate = useNavigate();
@@ -63,7 +64,7 @@ const EcommerceEditCategory = () => {
       } while (fetchedCategories.length === categoryFetchLimit);
 
       // Exclude the current category to prevent circular references
-      const filteredCategories = allCategories.filter((cat) => cat.$id !== categoryId);
+      const filteredCategories = allCategories.filter((cat) => cat._id !== categoryId);
 
       // Map categories to Select options
       const categoryOptions = filteredCategories.map((cat) => ({
@@ -91,7 +92,9 @@ const EcommerceEditCategory = () => {
 
       try {
         setIsLoading(true);
-        const category = await db.Categories.get(categoryId);
+        // Fetch category data from custom API
+        const response = await axios.get(`http://localhost:5001/categories/${categoryId}`);
+        const category = response; // Adjust based on your API response structure
         setCategoryData(category);
 
         // Determine category type
@@ -141,20 +144,7 @@ const EcommerceEditCategory = () => {
     setImageError(""); // Reset image error when a file is removed
   };
 
-  // Remove the existing image
-  const removeExistingImage = async () => {
-    try {
-      if (existingImage) {
-        // Delete the image file from storage
-        await storageServices.images.deleteFile(existingImage);
-        setExistingImage(null);
-        toast.success("Existing image removed successfully");
-      }
-    } catch (error) {
-      console.error("Failed to delete existing image:", error);
-      toast.error("Failed to delete existing image");
-    }
-  };
+ 
 
   // Cleanup image previews to avoid memory leaks
   useEffect(() => {
@@ -195,28 +185,20 @@ const EcommerceEditCategory = () => {
       }
 
       try {
-        let imageId = existingImage;
+       
 
-        // Upload new image if selected
-        if (selectedFile) {
-          // If there's an existing image, delete it first
-          if (existingImage) {
-            await storageServices.images.deleteFile(existingImage);
-          }
-          const storedFile = await storageServices.images.createFile(selectedFile);
-          imageId = storedFile.$id; // Update with new image ID
-        }
+       
 
         // Prepare the updated category data
-        const updatedCategory = {
-          name: values.name,
-          description: values.description,
-          image: imageId ? [imageId] : [],
-          parentCategoryId: categoryType === "subcategory" ? parentCategoryId : null,
-        };
+      
+        const formData = new FormData();
+        formData.append("image", selectedFile);  // Append the single file directly
 
+        Object.entries(values).forEach(([key, value]) => formData.append(key, value));
         // Update the category in the Appwrite database
-        await db.Categories.update(categoryId, updatedCategory);
+        await axios.put(`http://localhost:5001/categories/${categoryId}`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
         toast.success("Category updated successfully");
         // Redirect to categories list after a short delay
         setTimeout(() => {
@@ -409,7 +391,7 @@ const EcommerceEditCategory = () => {
                         <div className="mb-3">
                           <div className="position-relative d-inline-block">
                             <img
-                              src={getImageURL(existingImage)}
+                              src={existingImage}
                               alt="Existing"
                               className="img-thumbnail"
                               style={{
@@ -422,7 +404,7 @@ const EcommerceEditCategory = () => {
                               color="danger"
                               size="sm"
                               className="position-absolute top-0 end-0"
-                              onClick={removeExistingImage}
+                              onClick={() => setExistingImage(null)} // Remove existing image on click
                             >
                               <i className="ri-close-line"></i>
                             </Button>
